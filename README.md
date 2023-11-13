@@ -1,6 +1,8 @@
 # COMP424FinalProject
 McGill University COMP 424 Final Project - AI Bot
 
+Bot created by Olivier Hepler and Adam Sanger
+
 # Colosseum Survival!
 
 **Project Description & Template** : https://www.overleaf.com/read/vnygbjryrxrt#7b70cb
