@@ -44,7 +44,7 @@ class StudentAgent(Agent):
         # time_taken during your search and breaking with the best answer
         # so far when it nears 2 seconds.
         start_time = time.time()
-        time_taken = time.time() - start_time
+        
 
         # Moves (Up, Right, Down, Left)
         moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
@@ -71,7 +71,7 @@ class StudentAgent(Agent):
 
 
 
-
+        time_taken = time.time() - start_time
 
         print("My AI's turn took ", time_taken, "seconds.")
 
