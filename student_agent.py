@@ -9,10 +9,6 @@ import pdb
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
-    """
-    A dummy class for your implementation. Feel free to use this class to
-    add any helper functionalities needed for your agent.
-    """
 
     def __init__(self):
         super(StudentAgent, self).__init__()
@@ -25,8 +21,16 @@ class StudentAgent(Agent):
         }
 
     def minimax(self, chess_board, root, my_pos, adv_pos, max_step, depth, maximizing_player):
+        #WASNT SURE WHERE I SHOULD DESCRIBE THE CHANGES SO ILL DO IT HERE
+        
 
         score, gameOver = self.evaluate(root.board, my_pos, adv_pos, maximizing_player)
+        # I changed  onestepaway so that it will always return a node including -1,-1 but I don't think this was the most efficient mechanism
+        #for doing so
+        # I added the random distribution back into the game if next_step is none but I don't think next step is ever none anymore
+        # we still may be doing a random walk but I will try and fix that tonight
+        #MOST IMPORTANT THING WAS TO MOVE return max_eval and min_eval over 1 line
+        #
 
         if depth == 0 or gameOver:
             return score
@@ -35,6 +39,7 @@ class StudentAgent(Agent):
         # generate the search tree
         root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map_visited, maximizing_player)
         # we're just getting the first couple moves cause the game never ends that quickly
+        
         if maximizing_player:
             max_eval = -5
             for i in root.children:
@@ -63,6 +68,7 @@ class StudentAgent(Agent):
                     maximizing_player) -> list:
         # should we return an empty list or a -1 -1 node
         # instead of returning empty lists could we check max step beforehand
+        
         if max_step == 0:
             return []
 
