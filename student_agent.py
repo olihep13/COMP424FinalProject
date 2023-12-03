@@ -24,16 +24,45 @@ class StudentAgent(Agent):
             "l": 3,
         }
 
+    def minimaxab(self, chess_board, root, my_pos, adv_pos, max_step, depth, maximizing_player,alpha,beta):
+        if depth == 0:
+            return self.evaluate_moves(root.board, my_pos, adv_pos, maximizing_player, max_step)
+        map_visited = {}
+        root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map_visited, maximizing_player)
+        if maximizing_player:
+            max_eval = -5
+            for i in root.children:
+                cur_eval = self.minimaxab(i.board, i, i.advPos, i.pos, max_step, depth - 1, False,alpha,beta)
+                if max_eval < cur_eval:
+                    max_eval = cur_eval
+                    if alpha < max_eval:
+                        alpha = max_eval
+                    if beta <= alpha:
+                        break
+            return max_eval
+        else:
+            min_eval = 5
+            for i in root.children:
+                cur_eval = self.minimaxab(i.board, i, i.advPos, i.pos, max_step, depth - 1, False,alpha,beta)
+                if min_eval > cur_eval:
+                    min_eval = cur_eval
+                    if beta > min_eval:
+                        beta = min_eval
+                    if beta <= alpha:
+                        break
+            return min_eval
+
     def minimax(self, chess_board, root, my_pos, adv_pos, max_step, depth, maximizing_player):
 
         score, gameOver = self.evaluate(root.board, my_pos, adv_pos, maximizing_player)
+
         if gameOver or depth == 0:
             return score
         map_visited = {}
-        root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map_visited)
+        root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map_visited, maximizing_player)
         # we're just getting the first couple moves cause the game never ends that quickly
         if maximizing_player:
-            max_eval = -5
+            max_eval = -100
             for i in root.children:
                 cur_eval = self.minimax(i.board, i, i.advPos, i.pos, max_step, depth - 1, False)
                 if max_eval < cur_eval:
@@ -41,7 +70,7 @@ class StudentAgent(Agent):
                     root.nextStep = i.pos, i.direction
             return max_eval
         else:
-            min_eval = 5
+            min_eval = 100
             for i in root.children:
                 cur_eval = self.minimax(i.board, i, i.advPos, i.pos, max_step, depth - 1, True)
                 if min_eval > cur_eval:
@@ -49,9 +78,55 @@ class StudentAgent(Agent):
                     root.nextStep = i.pos, i.direction
             return min_eval
 
-    def oneStepAway(self, chess_board, my_pos, adv_pos, max_step, my_map,) -> list:
-        # should we return an empty list or a -1 -1 node
-        # instead of returning empty lists could we check max step beforehand
+    def blocks_available(self,chess_board, my_pos, adv_pos, lotsofsteps, my_map,maximizing_player) -> list:
+        # THE CHECKENDGAME TAKES TOO LONG TO BE RUN
+        #score, gameOver = self.evaluate(chess_board, my_pos, adv_pos, maximizing_player)
+        #if gameOver:
+        #   return[]
+
+        if lotsofsteps == 0:
+            return []
+
+        moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
+        list1 = []
+        r, c = my_pos
+        # Checks if we can move there
+        allowed_dirs = [d
+                        for d in range(0, 4)  # 4 moves possible
+                        if not chess_board[r, c, d] and  # chess_board True means wall
+                        not adv_pos == (r + moves[d][0], c + moves[d][1])]  # cannot move through Adversary
+        if len(allowed_dirs) == 0:
+            return list1
+        for i in range(len(allowed_dirs)):
+            # iterate through each move
+            dir = allowed_dirs[i]
+            # row and column
+            m_r, m_c = moves[dir]
+            # add the difference to your position
+            my_pos = (r + m_r, c + m_c)
+            # make a list of walls for each move
+            allowed_barriers = [j for j in range(0, 4)
+                                if not chess_board[r + m_r, c + m_c, j]]
+
+            if len(allowed_barriers) == 0:
+                # if we can't put up any walls then the position is going to be avoided
+                continue
+            if my_map.get(my_pos) is None:
+                my_map[my_pos] = 1
+                list1 = list1 + self.oneStepAway(chess_board, my_pos, adv_pos, lotsofsteps-1, my_map,maximizing_player)
+            # should not return a list that will be empty, should append all the elements to a list and make sure
+            # it is not 2,3 or 5D we might not want to return a list here but after the loop has gone through
+            # everything
+        return list1
+
+    def oneStepAway(self, chess_board, my_pos, adv_pos, max_step, my_map,maximizing_player) -> list:
+
+
+        # THE CHECKENDGAME TAKES TOO LONG TO BE RUN
+        #score, gameOver = self.evaluate(chess_board, my_pos, adv_pos, maximizing_player)
+        #if gameOver:
+        #   return[]
+
         if max_step == 0:
             return []
 
@@ -63,19 +138,8 @@ class StudentAgent(Agent):
                         for d in range(0, 4)  # 4 moves possible
                         if not chess_board[r, c, d] and  # chess_board True means wall
                         not adv_pos == (r + moves[d][0], c + moves[d][1])]  # cannot move through Adversary
-        # do we need this or does our endgame function take care of this already
-        # if we move there and we can't move anywhere else we should remove this node from our list
-        # but we've already appended it before the recursion, maybe we just return -1,-1
         if len(allowed_dirs) == 0:
-            # this node should never get to an evaluate or check endgame function
             return list1
-            # even though we call evaluate or check endgame in one step away
-            # OneStepAway is only called on nodes that take value mypos, not every node part of our big list
-            # so we will never evaluate -1,-1 from this function
-            # minimax has qualifying statements before each eval function
-
-
-        # for moves, we can make
         for i in range(len(allowed_dirs)):
             # iterate through each move
             dir = allowed_dirs[i]
@@ -104,13 +168,24 @@ class StudentAgent(Agent):
                     node.advPos = adv_pos
                     list1.append(node)
                     # combine lists we could
-                    list1 = list1 + self.oneStepAway(chess_board, node.pos, node.advPos, max_step - 1, my_map)
+                    list1 = list1 + self.oneStepAway(chess_board, node.pos, node.advPos, max_step - 1, my_map, maximizing_player)
             # should not return a list that will be empty, should append all the elements to a list and make sure
             # it is not 2,3 or 5D we might not want to return a list here but after the loop has gone through
             # everything
         return list1
 
-    def evaluate(self, chess_board, my_pos, adv_pos,  maximizing_player):
+    def evaluate_moves(self,chess_board, my_pos, adv_pos,maximizing_player,max_step):
+        map_for_moves = {}
+        moves = self.blocks_available(chess_board, my_pos, adv_pos, max_step, map_for_moves, maximizing_player)
+        map_for_moves = {}
+        opp_moves = self.blocks_available(chess_board, adv_pos, my_pos, max_step, map_for_moves, maximizing_player)
+        if maximizing_player:
+            score = (len(moves)-len(opp_moves)) /(len(chess_board[0])**2)
+        else:
+            score = (len(opp_moves))-len(moves) / (len(chess_board[0])**2)
+        return score
+
+    def evaluate(self, chess_board, my_pos, adv_pos,maximizing_player):
 
         # if minimizing:
         # if adv wins return high num, if you win return low num
@@ -196,34 +271,45 @@ class StudentAgent(Agent):
         root.board = chess_board
         root.pos = my_pos
         root.advPos = adv_pos
+        max_eval = 0
         root.nextStep = self.random_move(chess_board, my_pos, adv_pos, max_step)
 
-        max_eval = self.minimax(root.board, root, root.pos, root.advPos, max_step, 1, True)
-        if max_eval == 0:
+        alpha = -100
+        beta = 100
+
+        #max_eval = -10
+        #max_eval = self.minimaxab(root.board, root, root.pos, root.advPos, max_step, 2, True,alpha, beta)
+
+        # max_eval = self.minimax(root.board, root, root.pos, root.advPos, max_step, 3, True)
+        # This condition by itself wins 96% of games
+        if max_eval <= 0:
             map = {}
             cur_move, cur_wall = root.nextStep
             cur_r, cur_c = cur_move
             cur_chessboard = deepcopy(chess_board)
             cur_chessboard[cur_r, cur_c,cur_wall] = True
-            cur_opponents_moves = self.oneStepAway(cur_chessboard, adv_pos, cur_move, max_step, map)
+            #I replaced onestepaway here with blocks available cause it's much faster since it doesn't deepcopy
+            # and has lower number of squares
+            cur_opponents_moves = self.blocks_available(cur_chessboard, adv_pos, cur_move, max_step, map, False)
             map = {}
-            cur_my_moves = self.oneStepAway(cur_chessboard,cur_move, adv_pos, max_step, map)
+            cur_my_moves = self.blocks_available(cur_chessboard,cur_move, adv_pos, max_step, map, True)
             if len(cur_opponents_moves) != 0:
                 cur_ratio = len(cur_my_moves)/len(cur_opponents_moves)
                 map = {}
 
-                root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map)
+                root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map,True)
                 #may turn into function
                 for i in root.children:
                     empty_map = {}
-                    opponents_moves = self.oneStepAway(i.board, adv_pos, i.pos, max_step, empty_map)
-                    my_moves = self.oneStepAway(i.board, i.pos, adv_pos, max_step, empty_map)
+                    # I changed this
+                    opponents_moves = self.blocks_available(i.board, adv_pos, i.pos, max_step, empty_map,False)
+                    my_moves = self.blocks_available(i.board, i.pos, adv_pos, max_step, empty_map,True)
                     if len(opponents_moves) == 0:
+                        #print("we win")
                         return i.pos, i.direction
                     elif (len(my_moves)/len(opponents_moves)) > cur_ratio:
                         cur_ratio = (len(my_moves)/len(opponents_moves))
                         root.nextStep = i.pos, i.direction
-
 
         time_taken = time.time() - start_time
 
@@ -301,4 +387,6 @@ class Tree:
         self.children = []
         self.nextStep = []
         self.numMoves = 0
+
+
 
