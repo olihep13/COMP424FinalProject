@@ -23,7 +23,21 @@ class StudentAgent(Agent):
             "d": 2,
             "l": 3,
         }
-
+    # I added two versions of minimax one with alpha beta pruning but it doesn't seem to function properly,  
+    #sometimes it just traps itself there might be a problem with the evaluation function  or how I am evaluating
+    # good and bad results in minimax AB
+    # I added a second version of evaluate called evaluate_moves, which evaluates based on number of moves/blocks reachable for you and your opponent
+    #since the first evaluation could not reach a depth where the heuristic was not 0 most of the time (Game didn't end) in 2 moves or so and even if it did, minimax would not pick.
+    # still minimax doesn't win that often against the random player with the blocks available and I think there might be something wrong with the minimax evaluation/ir alpha beta pruning
+    # I copied oneStepAway into another function called blocks available that checks the number of blocks available close to you from a certain step. Because it doesn't analyze where you can
+    # put a wall and doesn't deepcopy the board, you end up with a much faster algorithm and can calculate a bit larger section of the board (though I just use max step right now)
+    # this is interchangeable with onemoveaway as an evaluation heuristic at a leaf node but not when constructing the tree, 
+    # Lastly I made a non recursive condition that returns the max move available out of our children based on a heuristic which divides the number of blocks (or moves) i can make over the number of
+    # of blocks (or moves) the opponent can make from my position. This has a 96% win rate against random when checking possible moves and 98% win rate against random when checking blocks
+    # It's also really fast, especially when checking blocks instead of moves. It's somewhat flawed as it checks your possible moves before your opponent actually makes a move
+    #
+    
+    
     def minimaxab(self, chess_board, root, my_pos, adv_pos, max_step, depth, maximizing_player,alpha,beta):
         if depth == 0:
             return self.evaluate_moves(root.board, my_pos, adv_pos, maximizing_player, max_step)
