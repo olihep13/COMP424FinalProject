@@ -9,6 +9,10 @@ import pdb
 
 @register_agent("student_agent")
 class StudentAgent(Agent):
+    """
+    A dummy class for your implementation. Feel free to use this class to
+    add any helper functionalities needed for your agent.
+    """
 
     def __init__(self):
         super(StudentAgent, self).__init__()
@@ -21,54 +25,33 @@ class StudentAgent(Agent):
         }
 
     def minimax(self, chess_board, root, my_pos, adv_pos, max_step, depth, maximizing_player):
-        #WASNT SURE WHERE I SHOULD DESCRIBE THE CHANGES SO ILL DO IT HERE
-        
 
         score, gameOver = self.evaluate(root.board, my_pos, adv_pos, maximizing_player)
-        # I changed  onestepaway so that it will always return a node including -1,-1 but I don't think this was the most efficient mechanism
-        #for doing so
-        # I added the random distribution back into the game if next_step is none but I don't think next step is ever none anymore
-        # we still may be doing a random walk but I will try and fix that tonight
-        #MOST IMPORTANT THING WAS TO MOVE return max_eval and min_eval over 1 line
-        #
-
-        if depth == 0 or gameOver:
+        if gameOver or depth == 0:
             return score
-
         map_visited = {}
-        # generate the search tree
-        root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map_visited, maximizing_player)
+        root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map_visited)
         # we're just getting the first couple moves cause the game never ends that quickly
-        
         if maximizing_player:
             max_eval = -5
             for i in root.children:
-                if i.pos != (-1,-1):
-                    cur_eval = self.minimax(i.board, i, i.advPos,
-                                            i.pos, max_step, depth - 1, False)
-                    if max_eval < cur_eval:
-                        max_eval = cur_eval
-                        root.nextStep = i.pos, i.direction
-                else:
-                    print("waste of space")
+                cur_eval = self.minimax(i.board, i, i.advPos, i.pos, max_step, depth - 1, False)
+                if max_eval < cur_eval:
+                    max_eval = cur_eval
+                    root.nextStep = i.pos, i.direction
             return max_eval
         else:
             min_eval = 5
             for i in root.children:
-                if i.pos != (-1,-1):
-                    cur_eval = self.minimax(i.board, i, i.advPos,
-                                            i.pos, max_step, depth - 1, True)
-                    if min_eval > cur_eval:
-                        min_eval = cur_eval
-                        root.nextStep = i.pos, i.direction
+                cur_eval = self.minimax(i.board, i, i.advPos, i.pos, max_step, depth - 1, True)
+                if min_eval > cur_eval:
+                    min_eval = cur_eval
+                    root.nextStep = i.pos, i.direction
             return min_eval
-        return 0
 
-    def oneStepAway(self, chess_board, my_pos, adv_pos, max_step, my_map,
-                    maximizing_player) -> list:
+    def oneStepAway(self, chess_board, my_pos, adv_pos, max_step, my_map,) -> list:
         # should we return an empty list or a -1 -1 node
         # instead of returning empty lists could we check max step beforehand
-        
         if max_step == 0:
             return []
 
@@ -84,9 +67,6 @@ class StudentAgent(Agent):
         # if we move there and we can't move anywhere else we should remove this node from our list
         # but we've already appended it before the recursion, maybe we just return -1,-1
         if len(allowed_dirs) == 0:
-            node = Tree()
-            node.pos = (-1, -1)
-            list1.append(node)
             # this node should never get to an evaluate or check endgame function
             return list1
             # even though we call evaluate or check endgame in one step away
@@ -124,13 +104,13 @@ class StudentAgent(Agent):
                     node.advPos = adv_pos
                     list1.append(node)
                     # combine lists we could
-                    list1 = list1 + self.oneStepAway(chess_board, node.pos, node.advPos, max_step - 1, my_map, maximizing_player)
+                    list1 = list1 + self.oneStepAway(chess_board, node.pos, node.advPos, max_step - 1, my_map)
             # should not return a list that will be empty, should append all the elements to a list and make sure
             # it is not 2,3 or 5D we might not want to return a list here but after the loop has gone through
             # everything
         return list1
 
-    def evaluate(self, chess_board, my_pos, adv_pos, maximizing_player):
+    def evaluate(self, chess_board, my_pos, adv_pos,  maximizing_player):
 
         # if minimizing:
         # if adv wins return high num, if you win return low num
@@ -144,7 +124,6 @@ class StudentAgent(Agent):
         # based on whether we are checking for maximizing player and whether adversary or you loose
 
         (gameOver, myPlayerScore, advPlayerScore) = self.check_endgame(chess_board, my_pos, adv_pos)
-        #  myplayerscore > advPlayerscore
         if maximizing_player:
             score = (myPlayerScore - advPlayerScore) / (len(chess_board[0]))
             # + if maximizing player
@@ -153,6 +132,41 @@ class StudentAgent(Agent):
             # - if minimizing player
 
         return score, gameOver  # or divide by sum of two player scores, not sure
+
+    def random_move(self, board, my_p, adv_p, max_s):
+        moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
+        steps = np.random.randint(0, max_s + 1)
+
+        # Pick steps random but allowable moves
+        for _ in range(steps):
+            r, c = my_p
+
+            # Build a list of the moves we can make
+            allowed_dirs = [ d
+                for d in range(0,4)                           # 4 moves possible
+                if not board[r,c,d] and                 # if not a wall and not our opponents position chess_board True means wall
+                not adv_p == (r+moves[d][0],c+moves[d][1])] # cannot move through Adversary
+
+            if len(allowed_dirs)==0:
+                # If no possible move, we must be enclosed by our Adversary
+                break
+
+            random_dir = allowed_dirs[np.random.randint(0, len(allowed_dirs))]
+
+            # This is how to update a row,col by the entries in moves
+            # to be consistent with game logic
+            m_r, m_c = moves[random_dir]
+            my_p = (r + m_r, c + m_c)
+
+        # Final portion, pick where to put our new barrier, at random
+        r, c = my_p
+        # Possibilities, any direction such that chess_board is False
+        allowed_barriers=[i for i in range(0,4) if not board[r,c,i]]
+        # Sanity check, no way to be fully enclosed in a square, else game already ended
+        assert len(allowed_barriers) >= 1
+        dir = allowed_barriers[np.random.randint(0, len(allowed_barriers))]
+
+        return my_p, dir
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
         """
@@ -170,6 +184,8 @@ class StudentAgent(Agent):
         Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
         """
 
+
+
         # Some simple code to help you with timing. Consider checking
         # time_taken during your search and breaking with the best answer
         # so far when it nears 2 seconds.
@@ -180,51 +196,35 @@ class StudentAgent(Agent):
         root.board = chess_board
         root.pos = my_pos
         root.advPos = adv_pos
-        root.nextStep = my_pos, 1
-        # i assume this gets changed but seeing as we always go up and build a wall above us maybe the 2nd variable doesn't
+        root.nextStep = self.random_move(chess_board, my_pos, adv_pos, max_step)
+
         max_eval = self.minimax(root.board, root, root.pos, root.advPos, max_step, 1, True)
-        print(max_eval)
-        # minimax will be going down our tree and using evaluation to find the next best node to move into
+        if max_eval == 0:
+            map = {}
+            cur_move, cur_wall = root.nextStep
+            cur_r, cur_c = cur_move
+            cur_chessboard = deepcopy(chess_board)
+            cur_chessboard[cur_r, cur_c,cur_wall] = True
+            cur_opponents_moves = self.oneStepAway(cur_chessboard, adv_pos, cur_move, max_step, map)
+            map = {}
+            cur_my_moves = self.oneStepAway(cur_chessboard,cur_move, adv_pos, max_step, map)
+            if len(cur_opponents_moves) != 0:
+                cur_ratio = len(cur_my_moves)/len(cur_opponents_moves)
+                map = {}
+
+                root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map)
+                #may turn into function
+                for i in root.children:
+                    empty_map = {}
+                    opponents_moves = self.oneStepAway(i.board, adv_pos, i.pos, max_step, empty_map)
+                    my_moves = self.oneStepAway(i.board, i.pos, adv_pos, max_step, empty_map)
+                    if len(opponents_moves) == 0:
+                        return i.pos, i.direction
+                    elif (len(my_moves)/len(opponents_moves)) > cur_ratio:
+                        cur_ratio = (len(my_moves)/len(opponents_moves))
+                        root.nextStep = i.pos, i.direction
 
 
-
-        # check if root.nextStep is none
-        if root.nextStep is None:
-            # choose a random int, we can make this a separate function but for now I'm just going to keep it the same
-            moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
-            steps = np.random.randint(0, max_step + 1)
-
-            # Pick steps random but allowable moves
-            for _ in range(steps):
-                r, c = my_pos
-
-                # Build a list of the moves we can make
-                allowed_dirs = [d
-                                for d in range(0, 4)  # 4 moves possible
-                                if not chess_board[
-                        r, c, d] and  # if not a wall and not our opponents position chess_board True means wall
-                                not adv_pos == (r + moves[d][0], c + moves[d][1])]  # cannot move through Adversary
-
-                if len(allowed_dirs) == 0:
-                    # If no possible move, we must be enclosed by our Adversary
-                    break
-
-                random_dir = allowed_dirs[np.random.randint(0, len(allowed_dirs))]
-
-                # This is how to update a row,col by the entries in moves
-                # to be consistent with game logic
-                m_r, m_c = moves[random_dir]
-                my_pos = (r + m_r, c + m_c)
-
-            # Final portion, pick where to put our new barrier, at random
-            r, c = my_pos
-            # Possibilities, any direction such that chess_board is False
-            allowed_barriers = [i for i in range(0, 4) if not chess_board[r, c, i]]
-            # Sanity check, no way to be fully enclosed in a square, else game already ended
-            assert len(allowed_barriers) >= 1
-            dir = allowed_barriers[np.random.randint(0, len(allowed_barriers))]
-            root.nextStep = (my_pos, dir)
-            print("random move")
         time_taken = time.time() - start_time
 
         return root.nextStep
@@ -290,7 +290,7 @@ class StudentAgent(Agent):
             win_blocks = p1_score
         else:
             player_win = -1  # Tie
-        return (True, p0_score, p1_score)
+        return True, p0_score, p1_score
 
 class Tree:
     def __init__(self):
@@ -300,3 +300,5 @@ class Tree:
         self.advPos = []
         self.children = []
         self.nextStep = []
+        self.numMoves = 0
+
