@@ -24,18 +24,25 @@ class StudentAgent(Agent):
             "l": 3,
         }
 
-    def minimax(self, chess_board, root, my_pos, adv_pos, max_step, depth, maximizing_player, alpha, beta):
+    def minimax(self, start_time, chess_board, root, my_pos, adv_pos, max_step, depth, maximizing_player, alpha, beta):
 
-        score, gameOver = self.evaluate(root.board, my_pos, adv_pos, maximizing_player, max_step)
-        if gameOver or depth == 0:
+        score, cantMove = self.evaluate(root.direction, root.board, my_pos, adv_pos, maximizing_player, max_step)
+
+        if cantMove or depth == 0:
             return score
+
+        time_taken = time.time() - start_time
+        if time_taken >= 1.65:
+            return score
+
         map_visited = {}
         root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map_visited)
+
 
         if maximizing_player:
             max_eval = None
             for i in root.children:
-                cur_eval = self.minimax(i.board, i, i.advPos, i.pos, max_step, depth - 1, False, alpha, beta)
+                cur_eval = self.minimax(start_time, i.board, i, i.advPos, i.pos, max_step, depth - 1, False, alpha, beta)
                 if max_eval == None:
                     max_eval = cur_eval
                     root.nextStep = i.pos, i.direction
@@ -52,7 +59,7 @@ class StudentAgent(Agent):
         else:
             min_eval = None
             for i in root.children:
-                cur_eval = self.minimax(i.board, i, i.advPos, i.pos, max_step, depth - 1, True, alpha, beta)
+                cur_eval = self.minimax(start_time, i.board, i, i.advPos, i.pos, max_step, depth - 1, True, alpha, beta)
                 if min_eval == None:
                     min_eval = cur_eval
                     root.nextStep = i.pos, i.direction
@@ -67,7 +74,7 @@ class StudentAgent(Agent):
                     break
             return min_eval
 
-    def oneStepAway(self, chess_board, my_pos, adv_pos, max_step, my_map,) -> list:
+    def oneStepAway(self, chess_board, my_pos, adv_pos, max_step, my_map):
         # should we return an empty list or a -1 -1 node
         # instead of returning empty lists could we check max step beforehand
         if max_step == 0:
@@ -121,14 +128,13 @@ class StudentAgent(Agent):
                     node.direction = allowed_barriers[x]
                     node.advPos = adv_pos
                     list1.append(node)
-                    # combine lists we could
                     list1 = list1 + self.oneStepAway(chess_board, node.pos, node.advPos, max_step - 1, my_map)
             # should not return a list that will be empty, should append all the elements to a list and make sure
             # it is not 2,3 or 5D we might not want to return a list here but after the loop has gone through
             # everything
         return list1
 
-    def evaluate(self, chess_board, my_pos, adv_pos,  maximizing_player, max_step):
+    def evaluate(self, wall, chess_board, my_pos, adv_pos,  maximizing_player, max_step):
 
         # if minimizing:
         # if adv wins return high num, if you win return low num
@@ -146,22 +152,69 @@ class StudentAgent(Agent):
 
         #mcts
 
+
+        #distance - we want a lower distance to be better, so subtract distance from score (or add to adversary score)
+        x, y = my_pos
+        c, v = adv_pos
+        distance = (pow((pow(x-c,2)) + (pow(y-v,2)), 1/2))
+
+        # prioritize continuous walls being built if they don't box you in
+        # direction is value between 0 and 3
+        #             "u": 0,
+        #             "r": 1,
+        #             "d": 2,
+        #             "l": 3,
+
+        #check for being boxed in (check direction -1 and +1 wall placement)
+        weight = 1
+        length = len(chess_board)
+        if(wall != None and chess_board[x, y, (wall + 1) % 4] and chess_board[x, y, (wall - 1) % 4] and chess_board[x, y, (wall - 2) % 4]):
+            weight = -100 #a loss
+
+        elif (wall != None and chess_board[x, y, (wall + 1) % 4] and chess_board[x, y, (wall - 1) % 4]):
+            weight = -50 #close to a loss
+        else:
+            if wall != None:
+                if wall == 0: #up
+                    if y < length - 1 and x < length - 1 and (chess_board[x + 1, y + 1, 2] or chess_board[x + 1, y + 1, 3]):
+                        weight += 20
+                    if y < length - 1 and x > 0 and (chess_board[x - 1, y + 1, 2] or chess_board[x - 1, y + 1, 1]):
+                        weight += 20
+
+                if wall == 1:  # right
+                    if y < length - 1 and x < length - 1 and (chess_board[x + 1, y + 1, 2] or chess_board[x + 1, y + 1, 3]):
+                        weight += 20
+                    if y > 0 and x < length - 1 and (chess_board[x + 1, y - 1, 0] or chess_board[x + 1, y - 1, 3]):
+                        weight += 20
+
+                if wall == 2:  # down
+                    if y > 0 and x < length - 1 and (chess_board[x + 1, y - 1, 0] or chess_board[x + 1, y - 1, 3]):
+                        weight += 20
+                    if y > 0 and x > 0 and (chess_board[x - 1, y - 1, 0] or chess_board[x - 1, y - 1, 1]):
+                        weight += 20
+
+                if wall == 3:  # left
+                    if y < length - 1 and x > 0 and (chess_board[x - 1, y + 1, 2] or chess_board[x - 1, y + 1, 1]):
+                        weight += 20
+                    if y > 0 and x > 0 and (chess_board[x - 1, y - 1, 0] or chess_board[x - 1, y - 1, 1]):
+                        weight += 20
+
+
+        # calculating available moves for someone
         advPlayerScore = self.blocks_available(chess_board, adv_pos, my_pos, max_step, {})
         myPlayerScore = self.blocks_available(chess_board, my_pos, adv_pos, max_step, {})
 
         if advPlayerScore == 0 or myPlayerScore == 0:
-            gameOver = True
+            noMoves = True
         else:
-            gameOver = False
+            noMoves = False
 
-        if maximizing_player:
-            score = (myPlayerScore - advPlayerScore) / (len(chess_board[0]))
-            # + if maximizing player
-        else:
-            score = (advPlayerScore - myPlayerScore) / (len(chess_board[0]))
-            # - if minimizing player
+        if maximizing_player: # show my score
+            score = (myPlayerScore - advPlayerScore - distance + weight) / (abs(myPlayerScore) + abs(advPlayerScore) + 1 + abs(weight) + distance)
+        else: # show adv score
+            score = (advPlayerScore - myPlayerScore + distance - weight) / (abs(myPlayerScore) + abs(advPlayerScore) + 1 + abs(weight) + distance)
 
-        return score, gameOver  # or divide by sum of two player scores, not sure
+        return score, noMoves  # or divide by sum of two player scores, not sure
 
     def random_move(self, board, my_p, adv_p, max_s):
         moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
@@ -221,16 +274,12 @@ class StudentAgent(Agent):
         # so far when it nears 2 seconds.
         start_time = time.time()
 
-        map = {}
         root = Tree()
         root.board = chess_board
         root.pos = my_pos
         root.advPos = adv_pos
-        root.nextStep = self.random_move(chess_board, my_pos, adv_pos, max_step)
-
-        max_eval = self.minimax(root.board, root, root.pos, root.advPos, max_step, 2, True, None, None)
-
-        time_taken = time.time() - start_time
+        root.nextStep = self.random_move(root.board, root.pos, root.advPos, max_step)
+        max_eval = self.minimax(start_time, root.board, root, root.pos, root.advPos, max_step, 10, True, None, None)
 
         return root.nextStep
 
