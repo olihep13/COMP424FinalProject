@@ -26,9 +26,6 @@ class StudentAgent(Agent):
 
     def gameOver(self, chess_board, my_pos, adv_pos, my_map, max_step):
 
-        if max_step > 144:
-            raise Exception("Illegal")
-
         if max_step == 0:
             return my_map
 
@@ -182,23 +179,6 @@ class StudentAgent(Agent):
 
     def evaluate(self, wall, chess_board, my_pos, adv_pos,  maximizing_player, max_step, gameOver):
 
-        # if minimizing:
-        # if adv wins return high num, if you win return low num
-        # if maximizing:
-        # if adv wins return low num, if you win return high num
-
-        # never build the 4th wall when surrounded by 3 walls, always try to exit
-        # maximize the available moves to you
-
-        # here we are checking to see if the game is over for either player and returning -1 or 1
-        # based on whether we are checking for maximizing player and whether adversary or you loose
-
-        # I replaced onestepaway here with blocks available cause it's much faster since it doesn't deepcopy
-        # and has lower number of squares
-
-        # mcts
-        # play 20 completely random full games in this state
-
         #distance - we want a lower distance to be better, so subtract distance from score (or add to adversary score)
         x, y = my_pos
         c, v = adv_pos
@@ -211,7 +191,6 @@ class StudentAgent(Agent):
         #             "d": 2,
         #             "l": 3,
 
-        #check for being boxed in (check direction -1 and +1 wall placement)
         weight = 1
         length = len(chess_board)
         if(wall != None and chess_board[x, y, (wall + 1) % 4] and chess_board[x, y, (wall - 1) % 4] and chess_board[x, y, (wall - 2) % 4]):
@@ -278,14 +257,6 @@ class StudentAgent(Agent):
                 c = 10
             score = (advPlayerScore - myPlayerScore - weight + distance - c)
 
-
-        """score = (myPlayerScore - advPlayerScore + weight) / (abs(myPlayerScore) + abs(advPlayerScore) + 1 + abs(weight))
-        if gameOver or noMoves:
-            if myPlayerScore > advPlayerScore:
-                score = score + 50
-            if myPlayerScore < advPlayerScore:
-                score = score - 50"""
-
         return score, noMoves  # or divide by sum of two player scores, not sure
 
     def random_move(self, board, my_p, adv_p, max_s):
@@ -328,39 +299,21 @@ class StudentAgent(Agent):
 
 
     def step(self, chess_board, my_pos, adv_pos, max_step):
-        """
-        Implement the step function of your agent here.
-        You can use the following variables to access the chess board:
-        - chess_board: a numpy array of shape (x_max, y_max, 4)
-        - my_pos: a tuple of (x, y)
-        - adv_pos: a tuple of (x, y)
-        - max_step: an integer
 
-        You should return a tuple of ((x, y), dir),
-        where (x, y) is the next position of your agent and dir is the direction of the wall
-        you want to put on.
-
-        Please check the sample implementation in agents/random_agent.py or agents/human_agent.py for more details.
-        """
-
-
-
-        # Some simple code to help you with timing. Consider checking
-        # time_taken during your search and breaking with the best answer
-        # so far when it nears 2 seconds.
         start_time = time.time()
-
+        if len(chess_board) <= 8:
+            depth = 3
+        else:
+            depth = 2
         root = Tree()
         root.board = chess_board
         root.pos = my_pos
         root.advPos = adv_pos
-        max_eval = self.minimax(start_time, root.board, root, root.pos, root.advPos, max_step, 3
-                                , True, None, None, my_pos, adv_pos)
+        max_eval = self.minimax(start_time, root.board, root, root.pos, root.advPos, max_step, depth, True, None, None, my_pos, adv_pos)
 
         try:
             x, y = root.nextStep
         except:
-            print(' bad minimax tree')
             self.greedyMove(root.board, root, root.pos, root.advPos, max_step)
 
         return root.nextStep
@@ -372,8 +325,6 @@ class StudentAgent(Agent):
         cur_r, cur_c = cur_move
         cur_chessboard = deepcopy(chess_board)
         cur_chessboard[cur_r, cur_c, cur_wall] = True
-        # I replaced onestepaway here with blocks available cause it's much faster since it doesn't deepcopy
-        # and has lower number of squares
         cur_opponents_moves = self.blocks_available(cur_chessboard, adv_pos, cur_move, max_step, map)
         map = {}
         cur_my_moves = self.blocks_available(cur_chessboard, cur_move, adv_pos, max_step, map)
@@ -382,26 +333,17 @@ class StudentAgent(Agent):
             map = {}
 
             root.children = self.oneStepAway(chess_board, my_pos, adv_pos, max_step, map)
-            # may turn into function
             for i in root.children:
                 empty_map = {}
-                # I changed this
                 opponents_moves = self.blocks_available(i.board, adv_pos, i.pos, max_step, empty_map)
                 my_moves = self.blocks_available(i.board, i.pos, adv_pos, max_step, empty_map)
                 if opponents_moves == 0:
-                    # print("we win")
                     return i.pos, i.direction
                 elif (my_moves / opponents_moves) > cur_ratio:
                     cur_ratio = (my_moves / opponents_moves)
                     root.nextStep = i.pos, i.direction
 
     def blocks_available(self, chess_board, my_pos, adv_pos, max_steps, my_map):
-        # THE CHECKENDGAME TAKES TOO LONG TO BE RUN
-        # score, gameOver = self.evaluate(chess_board, my_pos, adv_pos, maximizing_player)
-        # if gameOver:
-        #   return[]
-
-        #return a value instead
 
         if max_steps == 0:
             return 0
@@ -409,7 +351,6 @@ class StudentAgent(Agent):
         moves = ((-1, 0), (0, 1), (1, 0), (0, -1))
         sum = 0
         r, c = my_pos
-        # Checks if we can move there
         allowed_dirs = [d
                         for d in range(0, 4)  # 4 moves possible
                         if not chess_board[r, c, d] and  # chess_board True means wall
